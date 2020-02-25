@@ -1,6 +1,5 @@
 # nn_direct_mia
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/hallojs/nn_direct_mia/blob/master/direct_mia.ipynb)<sup>(please upload model_utils.py and b
-data.py by hand)</sup>
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/hallojs/nn_direct_mia/blob/master/direct_mia.ipynb)<sup>(please upload model_utils.py and data.py by hand)</sup>
 
 ## Notebooks
 1. direct_mia: Implementation of the direct mia from Long et. al. [[1]](#1).
