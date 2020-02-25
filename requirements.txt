@@ -1,0 +1,13 @@
+jupyter
+jupyter-client
+jupyter-console
+jupyter-core
+notebook
+widgetsnbextension
+numpy
+matplotlib
+tensorflow
+sklearn
+scipy
+plotly-express
+gdown
