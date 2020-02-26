@@ -305,6 +305,3 @@ def hypothesis_test(data, records_per_target_model, target_records, cut_off_p_va
     print('false positives over all target_records: ', sum_fp)
 
     return p_values
-  
-def test():
-  return 'hallo!!'
