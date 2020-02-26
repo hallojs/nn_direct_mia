@@ -1,5 +1,5 @@
 # nn_direct_mia
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/hallojs/nn_direct_mia/blob/master/direct_mia.ipynb)<sup>(please upload model_utils.py and data.py by hand)</sup>
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/hallojs/nn_direct_mia/master) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/hallojs/nn_direct_mia/blob/master/direct_mia.ipynb)<sup>(1)</sup> [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/hallojs/nn_direct_mia/blob/master/hypothesis_test_example.ipynb)<sup>(2)</sup>
 
 ## Notebooks
 1. direct_mia: Implementation of the direct mia from Long et. al. [[1]](#1).
