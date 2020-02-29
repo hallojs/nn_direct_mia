@@ -167,7 +167,7 @@ def gen_high_level_features(data, intermediate_models, train_images, filename):
   for i, model in enumerate(intermediate_models):
     predictions = model.predict(train_images)
     feature_vecs = np.append(feature_vecs, predictions, axis=1)
-  np.savetxt(data.dataset_path + 'high_level_features/' + filename, feature_vecs, delimiter=',')
+  np.save(data.dataset_path + 'high_level_features/' + filename, feature_vecs)
 
   return feature_vecs
 
@@ -197,12 +197,15 @@ def plot_high_level_features(high_level_features, data):
   fig.update_traces(marker=dict(size=2), selector=dict(mode='markers'))
   fig.show()
 
-
-def select_target_records(features_target, features_reference, 
-                          neighbor_threshold, probability_threshold, metric,
-                          data, n_jobs):
-  # calculate cosine distances
+  
+def calc_pairwise_distances(features_target, features_reference, data, metric, n_jobs=1):
   distances = pairwise_distances(features_target, features_reference, metric=metric, n_jobs=n_jobs)
+  np.save(data.dataset_path + 'high_level_features/pairwise_distances_' + metric + '.npy', distances)
+  return distances
+
+
+def select_target_records(neighbor_threshold, probability_threshold, data, distances):
+  # calculate cosine distances
   print('min_distance: ', np.min(distances))
   if(np.min(distances) >= neighbor_threshold):
     print('neighbor_threshold is smaller then all distances!')
