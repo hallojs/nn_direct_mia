@@ -1,4 +1,4 @@
-# macOs dust
+# macOS dust
 .DS_Store
 
 # jupyter notebook
@@ -6,3 +6,6 @@
 
 # data
 /storage
+
+# python
+/__pycache__
