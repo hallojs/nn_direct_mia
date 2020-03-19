@@ -1,9 +1,83 @@
+"""A Module for data-handling.
+
+classes
+-------
+Data : Prepocess and store all relevant parts of a dataset
+"""
 import tensorflow as tf
 
 
 class Data:
+  """A data class to preprocess and store all relevant parts of a dataset.
+
+  Attributes
+  ----------
+  dataset_path : str
+      Directory for storing files of the dataset.
+  input_shape : tuple
+      Dimensions of the input for the target/training models.
+  n_bckgrnd_knwldg : int
+      Size of the background knowledge of the attacker.
+  n_categories : int
+      Number of categories for the prediction.
+  n_reference_models : int
+      Even number of reference models.
+  n_target_models : int
+      Even number of target models.
+  n_training_set : int
+      Size of training set of target and refernce models
+  n_trgt_knwldg : int
+      Size of kownledge of the target.
+  reference_train_images : numpy.ndarray
+      Train images for the reference models.
+  reference_train_labels : numpy.ndarray
+      Train labels for the reference models.
+  reference_train_labels_cat : numpy.ndarray
+      Train labels (one-hot encoding) for the reference models.
+  target_train_images : numpy.ndarray
+      Train images for the target models.
+  target_train_labels : numpy.ndarray
+      Train labels for the target models.
+  target_train_labels_cat : numpy.ndarray
+      Train labels (one-hot encoding) for the training models.
+  test_images : numpy.ndarray
+      All test images.
+  test_labels : numpy.ndarray
+      All test labels.
+  test_labels_cat : numpy.ndarray
+      All test_labels (one-hot encoding).
+  train_images : numpy.ndarray
+      All train images.
+  train_labels : numpy.ndarray
+      All train labels.
+  train_labels_cat : numpy.ndarray
+      All train lables (one-hot encodind).
+  """
+
   def __init__(self, train_images, train_labels, test_images, test_labels,
                dataset_details):
+    """Create object for the prepocessing and data-handling of a new dataset.
+
+    Parameters
+    ----------
+    train_images : numpy.ndarray
+        Training images of the dataset.
+    train_labels : numpy.ndarray
+        Training labels of the dataset.
+    test_images : numpy.ndarray
+        Test images of the dataset.
+    test_labels : numpy.ndarray
+        Test labels of the dataset.
+    dataset_details : dict
+        Details of the dataset as dictionary:
+        * n_trgt_knwldg: size of kownledge of the target
+        * n_bckgrnd_knwldg: size of the background knowledge of the attacker
+        * n_training_set: size of training set of target and refernce models
+        * n_target_models: even number of target models
+        * n_reference_models: even number of reference models
+        * n_categories: number of categories for the prediction
+        * input_shape: sample dimensions
+    """
     self.n_trgt_knwldg = dataset_details['n_trgt_knwldg']
     self.n_bckgrnd_knwldg = dataset_details['n_bckgrnd_knwldg']
     self.n_training_set = dataset_details['n_training_set']

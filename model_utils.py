@@ -1,3 +1,12 @@
+"""Utiliy module with the whole functionality needed for direct mia on cnn.
+
+Implementation and analysis of the direct mia from:
+
+Long, Yunhui and Bindschaedler, Vincent and Wang, Lei and Bu, Diyue and Wang,
+Xiaofeng and Tang, Haixu and Gunter, Carl A and Chen, Kai (2018).
+Understanding membership inferences on well-generalized learning models.
+arXiv preprint arXiv:1802.04889.
+"""
 import os
 import numpy as np
 import math
@@ -26,11 +35,16 @@ from tensorflow.keras.layers import Dense
 def create_dir_structure(dataset_path):
   """Create directiory structure for all data produced.
 
-  target_models and reference_mdoels cotains all trained models and the records
+  target_models and reference_models cotains all trained models and the records
   used as training sets for each model.
 
   high_level_features will contain all high level features obtained by the
-  reference and training models from the last layer before the Softmax layer.
+  reference and training models from the last layer before the softmax layer.
+
+  Parameters
+  ----------
+  dataset_path : str
+      Directory for storing files of the dataset.
   """
   dirs = ['target_models', 'reference_models', 'high_level_features']
 
@@ -39,8 +53,21 @@ def create_dir_structure(dataset_path):
       os.makedirs(dataset_path + d)
 
 
-def create_model(input_shape, classes):
+def create_model(input_shape, n_categories):
   """Architecture of the attacker and reference models.
+
+  Parameters
+  ----------
+  input_shape : tuple
+      Dimensions of the input for the target/training
+  n_categories : int
+      number of categories for the prediction
+  models.
+
+  Returns
+  -------
+  tensorflow.python.keras.engine.sequential.Sequential
+      A convolutional neuronal network model.
   """
   model = Sequential()
 
@@ -69,7 +96,7 @@ def create_model(input_shape, classes):
   model.add(Dropout(rate=0.5))
 
   # fully connected layer
-  model.add(Dense(classes))
+  model.add(Dense(n_categories))
   model.add(Activation('softmax'))
 
   return model
@@ -79,7 +106,18 @@ def get_records_per_target_model(dataset):
   """Create training datasets for the target models.
 
   Each trainingsset contains exactly 50 percent of the target knowledge. Each
-  record is in 50% of the target models.
+  record is in 50 percent of the target models. For detailed explanation see
+  paper section 5.1.
+
+  Parameters
+  ----------
+  dataset : data.Data
+      Data object for the attacked dataset.
+
+  Returns
+  -------
+  numpy.ndarray
+      Describes which record is used to train which model.
   """
   records_per_target_model = np.array([])
   for i in range(0, int(dataset.n_target_models / 2)):
@@ -103,8 +141,17 @@ def get_records_per_target_model(dataset):
 
 
 def get_records_per_reference_model(dataset):
-  """Create training datasets for the reference models using the Bootstrap
-  Method.
+  """Create training datasets for the reference models.
+
+  Parameters
+  ----------
+  dataset : data.Data
+      Data object for the attacked dataset.
+
+  Returns
+  -------
+  numpy.ndarray
+      Describes which record is used to train which model.
   """
   records_per_reference_model = np.array([])
   for i in range(dataset.n_reference_models):
@@ -127,6 +174,17 @@ def get_records_per_reference_model(dataset):
 
 def train_target_models(data, records_per_target_model, epochs, batch_size):
   """Train the target models using the adam optimizer.
+
+  Parameters
+  ----------
+  data : data.Data
+      Data object for the attacked dataset.
+  records_per_target_model : numpy.ndarray
+      Describes which record is used to train which model.
+  epochs : int
+      Number of training epochs.
+  batch_size : int
+      Size of mini batches for stochatic gradient descent.
   """
   for idx, records in enumerate(records_per_target_model):
     print('Train model ', str(idx))
@@ -144,6 +202,17 @@ def train_target_models(data, records_per_target_model, epochs, batch_size):
 def train_reference_models(data, records_per_reference_model,
                            epochs, batch_size):
   """Train the reference models using the adam optimizer.
+
+  Parameters
+  ----------
+  data : data.Data
+      Data object for the attacked dataset.
+  records_per_reference_model : numpy.ndarray
+      Describes which record is used to train which model.
+  epochs : int
+      Number of training epochs.
+  batch_size : int
+      Size of mini batches for stochastic gradient descent.
   """
   for idx, records in enumerate(records_per_reference_model):
     print('Train model ', str(idx))
@@ -157,13 +226,27 @@ def train_reference_models(data, records_per_reference_model,
     model.save(data.dataset_path + 'reference_models/model' + str(idx) + '.h5')
 
 
-def evaluate_models(models, data, n_batches):
+def evaluate_models(models, data, batch_size):
   """Evaluate the accuray of trained models.
+
+  Parameters
+  ----------
+  models : numpy.ndarray
+      Array of trained models.
+  data : data.Data
+      Data object for the attacked dataset.
+  batch_size : int
+      Size of mini batches for stochastic gradient descent.
+
+  Returns
+  -------
+  tuple
+      mean and minimal accuracy over all models
   """
   accuracys = []
   for model in models:
     _, accuracy = model.evaluate(x=data.test_images, y=data.test_labels_cat,
-                                 batch_size=n_batches, verbose=3)
+                                 batch_size=batch_size, verbose=3)
     accuracys.append(accuracy)
 
   accuracys = np.asarray(accuracys)
@@ -176,6 +259,18 @@ def evaluate_models(models, data, n_batches):
 
 def load_models(path, n_models):
   """Load trained and saved models.
+
+  Parameters
+  ----------
+  path : str
+      Path to saved models.
+  n_models : int
+      Describes how many models should be loaded.
+
+  Returns
+  -------
+  numpy.ndarray
+      Array of loaded models.
   """
   all_models = np.array([])
   for i in range(n_models):
@@ -191,6 +286,16 @@ def gen_intermediate_models(models):
 
   This intermediate models are used later to extract the high level features of
   the target and refernce models.
+
+  Parameters
+  ----------
+  models : numpy.ndarray
+      Array of models from which the intermediate models should be extracted.
+
+  Returns
+  -------
+  numpy.ndarray
+      Array of intermediate models.
   """
   intermediate_models = np.array([])
   for i, model in enumerate(models):
@@ -204,6 +309,24 @@ def gen_intermediate_models(models):
 
 def gen_high_level_features(data, intermediate_models, train_images, filename):
   """Extract the high level features from the intermediate models.
+
+  For details see paper section 4.3.
+
+  Parameters
+  ----------
+  data : data.Data
+      Data object for the attacked dataset.
+  intermediate_models : numpy.ndarray
+      Array of intermediate models.
+  train_images : numpy.ndarray
+      Images for which the high-level features should be generated.
+  filename : str
+      Filename to save the high level features.
+
+  Returns
+  -------
+  numpy.ndarray
+      Array of high level features. One feature for each image.
   """
   feature_vecs = np.empty((len(train_images), 0))
   for i, model in enumerate(intermediate_models):
@@ -215,7 +338,23 @@ def gen_high_level_features(data, intermediate_models, train_images, filename):
 
 
 def get_model_inference(idx_records, records, labels, models):
-  """Predict on trained models.
+  """Predict on trained models and calculate the log loss.
+
+  Parameters
+  ----------
+  idx_records : numpy.ndarray
+      Index array of records to predict on.
+  records : numpy.ndarray
+      Array of records used for prediction.
+  labels : numpy.ndarray
+      Array of labels used to predict on.
+  models : numpy.ndarray
+      Array of models used for prediction.
+
+  Returns
+  -------
+  numpy.array
+      Array of log losses of predictions.
   """
   inferences = []
   for record in idx_records:
@@ -235,6 +374,13 @@ def plot_high_level_features(high_level_features, data):
   """Generate a 3D plot of the high level features.
 
   A PCA is used to reduce the dimensions for the plot.
+
+  Parameters
+  ----------
+  high_level_features : numpy.ndarray
+      Array of high dimensional high level features.
+  data : data.Data
+      Data object for the attacked dataset.
   """
   pca = PCA(n_components=3)
   reduced_features = pca.fit_transform(high_level_features)
@@ -251,8 +397,24 @@ def calc_pairwise_distances(features_target, features_reference, data, metric,
                             n_jobs=1):
   """Calculate pairwise distances between given features.
 
-  The distance between features_target[i] and features_reference[j] is saved in
-  distances[i][j].
+  Parameters
+  ----------
+  features_target : numpy.ndarray
+      First array for pairwise distances.
+  features_reference : numpy.ndarray
+      Second array for pairwise distances.
+  data : Data.data
+      Data object for the attacked dataset.
+  metric : str
+      Metric used for the distance calculations.
+  n_jobs : int, optional
+      Number of parallel computation jobs.
+
+  Returns
+  -------
+  numpy.ndarray
+      The distance between features_target[i] and features_reference[j] is
+      saved in distances[i][j].
   """
   distances = pairwise_distances(
       features_target, features_reference, metric=metric, n_jobs=n_jobs)
@@ -269,7 +431,24 @@ def select_target_records(neighbor_threshold, probability_threshold, data,
   A record is selected as target record if it has few neighbours regarding its
   high level features. We estimate the number of neighbours of a record in the
   target training set over the number of neighbours in the reference training
-  sets.
+  sets. For details see section 4.3 from the paper.
+
+  Parameters
+  ----------
+  neighbor_threshold : float
+      If distance is smaller then the neighbor threshold the record is selected
+      as target record.
+  probability_threshold : float
+      For details see section 4.3 from the paper.
+  data : data.Data
+      Data object for the attacked dataset.
+  distances : numpy.ndarray
+      Distance array used for target selection.
+
+  Returns
+  -------
+  numpy.array
+      Selected target records
   """
   print('min_distance: ', np.min(distances))
   if(np.min(distances) >= neighbor_threshold):
@@ -288,6 +467,15 @@ def select_target_records(neighbor_threshold, probability_threshold, data,
 
 def plot_target_records(target_records, input_shape, data):
   """Plot target records to get a understanding of our selection algorithm.
+
+  Parameters
+  ----------
+  target_records : numpy.ndarray
+      Selected target records which should be plotted.
+  input_shape : tuple
+      Dimensions of the input for the target/training
+  data : data.Data
+      Data object for the attacked dataset.
   """
   rows = math.ceil(len(target_records) / 3)
   plt.figure(figsize=[15, rows * 3])
@@ -303,7 +491,19 @@ def sample_reference_losses(target_records, reference_inferences):
 
   Sample the log losses of a record regarding its label. Estimate the CDF of
   this samples and smooth the estimated CDF with the shape-preserving
-  piecewise cubic interpolation.
+  piecewise cubic interpolation. For details see section 4.4 from the paper.
+
+  Parameters
+  ----------
+  target_records : numpy.ndarray
+      Array of target records for sampling the reference log losses.
+  reference_inferences : numpy.ndarray
+      Array of log losses of the predictions on the reference models.
+
+  Returns
+  -------
+  tuple
+      successfully used target records and smoothed ecdf
   """
   rows = math.ceil(len(target_records) / 3)
   plt.figure(figsize=[15, rows * 4])
@@ -321,7 +521,7 @@ def sample_reference_losses(target_records, reference_inferences):
 
     try:
       pchip_val = pchip(ecdf_val.x[1:], ecdf_val.y[1:])
-    except:
+    except ValueError:
       continue
 
     used_target_records.append(target_records[idx])
@@ -348,6 +548,26 @@ def sample_reference_losses(target_records, reference_inferences):
 def hypothesis_test(data, records_per_target_model, target_records,
                     cut_off_p_value, pchip_references, target_inferences):
   """Left-tailed hypothesis test.
+
+  Parameters
+  ----------
+  data : data.Data
+      Data object for the attacked dataset.
+  records_per_target_model : numpy.ndarray
+      Describes which record is used to train which target model.
+  target_records : numpy.ndarray
+      Target records finally used for the attack.
+  cut_off_p_value : float
+      Level of significance used for the hypothesis test.
+  pchip_references : list
+      Interpolated ecdfs of smapled log losses
+  target_inferences : numpy.array
+      Array of log losses of the predictions on the target models.
+
+  Returns
+  -------
+  list
+      P-values of the hypothesis tests.
   """
   ground_truth = np.zeros((data.n_trgt_knwldg, data.n_target_models))
   for i in range(data.n_target_models):
