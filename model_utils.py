@@ -1,4 +1,4 @@
-"""Utiliy module with the whole functionality needed for direct mia on cnn.
+"""Utiliy module with the whole functionality needed for direct mia on a cnn.
 
 Implementation and analysis of the direct mia from:
 
@@ -12,6 +12,8 @@ import numpy as np
 import math
 import plotly.express as px
 import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
+import plotly.graph_objects as go
 # for the empirical cdf
 from statsmodels.distributions.empirical_distribution import ECDF
 # for the interpolation
@@ -31,6 +33,7 @@ from tensorflow.keras.layers import Dropout
 from tensorflow.keras.layers import Flatten
 from tensorflow.keras.layers import Dense
 
+SAVE_PLOTS_IN_FILE = 'mnist_cosine'
 
 def create_dir_structure(dataset_path):
   """Create directiory structure for all data produced.
@@ -387,10 +390,262 @@ def plot_high_level_features(high_level_features, data):
   print('pca explained_variance_ratio: ', pca.explained_variance_ratio_)
   fig = px.scatter_3d(x=reduced_features[:, 0], y=reduced_features[:, 1],
                       z=reduced_features[:, 2],
-                      color=data.train_labels.astype(str), width=750,
-                      height=750)
+                      color=data.train_labels.astype(str), width=650,
+                      height=650)
   fig.update_traces(marker=dict(size=2), selector=dict(mode='markers'))
   fig.show()
+
+
+def plot3D_high_level_features_target(high_level_features_all, data,
+                                      target_records_idx, colorscale):
+  """Generate a 3D plot of the high level features.
+
+  Generate 3D-plot of the high level target space with embedded high level
+  features of the target records. A PCA is used to reduce the dimensions for
+  the plot.
+
+  Parameters
+  ----------
+  high_level_features_all : np.ndarray
+      Array of high level features belonging to target and reference training
+      sets.
+  data : data.Data
+      Data object for the attacked dataset.
+  target_records_idx : np.ndarray
+      Index array of target records.
+  colorscale : np.ndarray
+      Color array (hex) for plotting class details.
+  """
+  pca = PCA(n_components=3)
+  reduced_features = pca.fit_transform(high_level_features_all)
+  print('pca explained_variance_ratio: ', pca.explained_variance_ratio_)
+
+  # choose all reduced high level features belonging to the target traning data
+  high_level_features_target = reduced_features[:data.n_trgt_knwldg, :]
+
+  # choose all reduced high level features belonging to the target records
+  high_level_features_target_records = \
+      high_level_features_target[target_records_idx, :]
+
+  # choose all reduced high level features belonging to the reference training
+  # set
+  high_level_features_reference = reduced_features[data.n_trgt_knwldg:, :]
+
+  target_records_color = data.target_train_labels[target_records_idx]
+  reference_color = data.reference_train_labels
+
+  # build figure
+  fig = go.Figure()
+
+  # add scatter trace with opaque markers for reduced high level features
+  # belonging to records from the reference training set
+  fig.add_trace(
+      go.Scatter3d(
+          mode='markers',
+          opacity=0.15,
+          x=high_level_features_reference[:, 0],
+          y=high_level_features_reference[:, 1],
+          z=high_level_features_reference[:, 2],
+          marker=dict(size=2, color=reference_color,
+                      colorscale=colorscale, symbol='circle'),
+          hovertext=reference_color,
+          showlegend=False
+      )
+  )
+
+  # add scatter trace with square bold markers for reduced high level features
+  # belonging to the selected target records
+  fig.add_trace(
+      go.Scatter3d(
+          mode='markers',
+          x=high_level_features_target_records[:, 0],
+          y=high_level_features_target_records[:, 1],
+          z=high_level_features_target_records[:, 2],
+          marker=dict(size=6, color=target_records_color,
+                      colorscale=colorscale, symbol='square',
+                      line=dict(color='Black', width=1)),
+          name='target records',
+          hovertext=target_records_color,
+          showlegend=False
+      )
+  )
+
+  fig.show()
+
+
+# !!!Buggy!!! use plot2D_high_level_features_target_plt instead
+def plot2D_high_level_features_target(high_level_features_all, data,
+                                      target_records_idx, dist_colorscale):
+  """Generate a 2D plot of the high level features.
+
+  Generate 2D-plot of the high level target space with embedded high level
+  features of the target records. A PCA is used to reduce the dimensions for
+  the plot.
+
+  Parameters
+  ----------
+  high_level_features_all : np.ndarray
+      Array of high level features belonging to target and reference training
+      sets.
+  data : data.Data
+      Data object for the attacked dataset.
+  target_records_idx : np.ndarray
+      Index array of target records.
+  colorscale : np.ndarray
+      Color array (hex) for plotting class details.
+
+  Deleted Parameters
+  ------------------
+  high_level_features : numpy.ndarray
+      Array of high dimensional high level features.
+  """
+  pca = PCA(n_components=2)
+  reduced_features = pca.fit_transform(high_level_features_all)
+  print('pca explained_variance_ratio: ', pca.explained_variance_ratio_)
+
+  # choose all reduced high level features belonging to the target traning data
+  high_level_features_target = reduced_features[:data.n_trgt_knwldg, :]
+
+  # choose all reduced high level features belonging to the target records
+  high_level_features_target_records = \
+      high_level_features_target[target_records_idx, :]
+
+  # choose all reduced high level features belonging to the reference training
+  # set
+  high_level_features_reference = reduced_features[data.n_trgt_knwldg:, :]
+
+  target_records_color = data.target_train_labels[target_records_idx]
+
+  print(target_records_color)
+
+  reference_color = data.reference_train_labels
+
+  # build figure
+  fig = go.Figure()
+
+  # add scatter trace with opaque markers for reduced high level features
+  # belonging to records from the reference training set
+  fig.add_trace(
+      go.Scatter(
+          mode='markers',
+          opacity=1,
+          x=high_level_features_reference[:, 0],
+          y=high_level_features_reference[:, 1],
+          marker=dict(size=2, color=reference_color,
+                      colorscale=dist_colorscale, symbol='circle'),
+          name='non_target_records',
+          hovertext=reference_color,
+          showlegend=False
+      )
+  )
+
+  # add scatter trace with square bold markers for reduced high level features
+  # belonging to the selected target records
+  fig.add_trace(
+      go.Scatter(
+          mode='markers',
+          x=high_level_features_target_records[:, 0],
+          y=high_level_features_target_records[:, 1],
+          marker=dict(size=10, color=target_records_color,
+                      colorscale=dist_colorscale, symbol='square',
+                      line=dict(color='Black', width=1)),
+          name='target records',
+          hovertext=target_records_color,
+          showlegend=False
+      )
+  )
+
+  fig.show()
+
+
+def plot2D_high_level_features_target_plt(high_level_features_all, data,
+                                          target_records_idx,
+                                          mean_distances_target,
+                                          dist_colorscale, zoom_x, zoom_y,
+                                          annotate):
+  """Generate a 2D plot of the high level features.
+
+  A PCA is used to reduce the dimensions for the plot.
+
+  Parameters
+  ----------
+  high_level_features_all : np.ndarray
+      Array of high level features belonging to target and reference training
+      sets.
+  data : data.Data
+      Data object for the attacked dataset.
+  target_records_idx : np.ndarray
+      Index array of target records.
+  mean_distances_target : np.ndarray
+      Array of mean distances from one target record to all reference records
+      in the high level feature space.
+  dcolorscale : np.ndarray
+      Color array (hex) for plotting class details.
+  zoom_x : int
+      Zoom along the x-axis for the plot.
+  zoom_y : int
+      Zoom along the y-axis for the plot.
+  annotate : bool
+      Activate annotations.
+  """
+  pca = PCA(n_components=2)
+  reduced_features = pca.fit_transform(high_level_features_all)
+  print('pca explained_variance_ratio: ', pca.explained_variance_ratio_)
+
+  # choose all reduced high level features belonging to the target traning data
+  high_level_features_target = reduced_features[:data.n_trgt_knwldg, :]
+
+  # choose all reduced high level features belonging to the target records
+  high_level_features_target_records = \
+      high_level_features_target[target_records_idx, :]
+
+  # choose all reduced high level features belonging to the reference training
+  # set
+  high_level_features_reference = reduced_features[data.n_trgt_knwldg:, :]
+
+  reference_labels = data.reference_train_labels
+
+  colours = ListedColormap(dist_colorscale)
+  color_targets = dist_colorscale[data.target_train_labels[target_records_idx]]
+  color_targets = color_targets.flatten()
+  # create the figure and axes objects
+  fig, ax = plt.subplots(1, figsize=(10, 10))
+
+  # plot reduced high level features belonging to records from the reference
+  # training set
+  scatter1 = ax.scatter(x=high_level_features_reference[:, 0],
+                        y=high_level_features_reference[:, 1],
+                        c=reference_labels, cmap=colours, s=1)
+
+  scatter_size = mean_distances_target
+  scatter_size /= np.max(scatter_size)
+  scatter_size = scatter_size ** 4 * 300
+
+  # plot reduced high level features belonging to target records
+  ax.scatter(x=high_level_features_target_records[:, 0],
+             y=high_level_features_target_records[:, 1],
+             color=color_targets, s=scatter_size, marker='D',
+             linewidths=1, edgecolors='black')
+
+  # Add labels for each point
+  labels = np.arange(0, len(target_records_idx))
+  for x_pos, y_pos, label in zip(high_level_features_target_records[:, 0],
+                                 high_level_features_target_records[:, 1],
+                                 labels):
+    if annotate:
+      t = ax.annotate(label, xy=(x_pos, y_pos), xytext=(15, 0),
+                      textcoords='offset points', ha='left', va='center',
+                      size=8)
+      t.set_bbox(dict(facecolor='white', alpha=0.5, edgecolor='white'))
+
+  ax.legend(handles=scatter1.legend_elements()[0],
+            labels=data.categories)
+  ax.margins(x=zoom_x, y=zoom_y)
+  plt.grid()
+
+  if(SAVE_PLOTS_IN_FILE):
+    fig.savefig('plots/' + SAVE_PLOTS_IN_FILE +
+                '_high_level_features_target_zoom.pdf', bbox_inches='tight')
 
 
 def calc_pairwise_distances(features_target, features_reference, data, metric,
@@ -462,28 +717,46 @@ def select_target_records(neighbor_threshold, probability_threshold, data,
 
   target_records = np.where(est_n_neighbors < probability_threshold)[0]
 
-  return target_records
+  mean_distances_target = np.mean(distances[target_records], axis=1)
+
+  print('number of target_records: ', len(target_records))
+  print('target_records: ', target_records)
+  print('number of neighbors: ', n_neighbors[target_records])
+  print('mean distances of target records to records of the reference' +
+        'training set:', mean_distances_target)
+
+  return target_records, mean_distances_target
 
 
-def plot_target_records(target_records, input_shape, data):
+def plot_target_records(target_records, data):
   """Plot target records to get a understanding of our selection algorithm.
 
   Parameters
   ----------
   target_records : numpy.ndarray
       Selected target records which should be plotted.
-  input_shape : tuple
-      Dimensions of the input for the target/training
   data : data.Data
       Data object for the attacked dataset.
   """
   rows = math.ceil(len(target_records) / 3)
-  plt.figure(figsize=[15, rows * 3])
+  plt.figure(figsize=[15, rows * 4])
   for idx, target_record in enumerate(target_records):
-    title = 'r=' + str(target_record)
+    title = 'r=' + str(target_record) + ' label=' \
+            + str(data.target_train_labels[target_record])
+
     plt.subplot(rows, 3, idx + 1, title=title)
-    plt.imshow(data.target_train_images[target_record, :, :].reshape(
-        (input_shape[0], input_shape[1])))
+
+    input_shape = data.input_shape
+    if(input_shape[2] <= 1):
+      re_shape = (input_shape[0], input_shape[1])
+    else:
+      re_shape = (input_shape[0], input_shape[1], input_shape[2])
+
+    plt.imshow(data.target_train_images[target_record, :, :].reshape(re_shape))
+
+  if(SAVE_PLOTS_IN_FILE):
+    plt.savefig('plots/' + SAVE_PLOTS_IN_FILE + '_target_records.pdf',
+                bbox_inches='tight')
 
 
 def sample_reference_losses(target_records, reference_inferences):
@@ -531,7 +804,7 @@ def sample_reference_losses(target_records, reference_inferences):
     x = np.linspace(min_x, max_x, 1000)
 
     title = 'Empirical CDF of $\mathcal{D}(L)$, with $r=$' + \
-        str(target_records[idx])
+            str(target_records[idx])
     plt.subplot(rows, 3, cnt + 1, title=title)
     plt.plot(ecdf_val.x, ecdf_val.y, color='green',
              linewidth=3, label='emprical cdf')
@@ -539,14 +812,20 @@ def sample_reference_losses(target_records, reference_inferences):
              linestyle='dotted', linewidth=3, label='pchip')
     plt.legend()
     cnt += 1
-  plt.show()
+
+  if(SAVE_PLOTS_IN_FILE):
+    plt.savefig('plots/' + SAVE_PLOTS_IN_FILE + '_reference_log_losses.pdf',
+                bbox_inches='tight')
 
   used_target_records = np.asarray(used_target_records)
+  print('number of user target records: ' + str(len(used_target_records)))
+  print(used_target_records)
   return used_target_records, pchip_references
 
 
 def hypothesis_test(data, records_per_target_model, target_records,
-                    cut_off_p_value, pchip_references, target_inferences):
+                    cut_off_p_value, pchip_references, target_inferences,
+                    mean_distances_target):
   """Left-tailed hypothesis test.
 
   Parameters
@@ -563,6 +842,9 @@ def hypothesis_test(data, records_per_target_model, target_records,
       Interpolated ecdfs of smapled log losses
   target_inferences : numpy.array
       Array of log losses of the predictions on the target models.
+  mean_distances_target : np.ndarray
+      Array of mean distances from one target record to all reference records
+      in the high level feature space.
 
   Returns
   -------
@@ -577,11 +859,15 @@ def hypothesis_test(data, records_per_target_model, target_records,
   for idx in range(len(target_records)):
     p_values.append(pchip_references[idx](target_inferences[idx, :]))
 
-  n_attacks_successfull = 0
   sum_precision = 0
   sum_recall = 0
   sum_tp = 0
   sum_fp = 0
+
+  precision_list = []
+  recall_list = []
+  successfull_attacked_targets_idx = []
+
   for idx, target_record in enumerate(target_records):
     fn = 0
     tn = 0
@@ -603,7 +889,7 @@ def hypothesis_test(data, records_per_target_model, target_records,
     print('fn: ', fn, 'tn: ', tn, 'fp: ', fp, 'tp: ', tp)
 
     if(tp > 0):
-      n_attacks_successfull += 1
+      successfull_attacked_targets_idx.append(idx)
       precision = tp / (fp + tp)
       recall = tp / (fn + tp)
       sum_precision += precision
@@ -612,14 +898,35 @@ def hypothesis_test(data, records_per_target_model, target_records,
       sum_fp += fp
       print('precision: ', precision)
       print('recall: ', recall)
+      print('mean distance to records from reference dataset: ',
+            mean_distances_target[idx])
+
+      precision_list.append([precision])
+      recall_list.append([recall])
 
     print('\n')
-  if(n_attacks_successfull > 0):
+
+  n_attacks_successfull = len(successfull_attacked_targets_idx)
+  print('n_attacks_successfull: ', n_attacks_successfull)
+
+  if(n_attacks_successfull):
     print('precsion over all target_records: ',
           sum_precision / n_attacks_successfull)
     print('recall over all target_records: ',
           sum_recall / n_attacks_successfull)
     print('true positives over all target_records: ', sum_tp)
     print('false positives over all target_records: ', sum_fp)
+
+    scatter_size = mean_distances_target[successfull_attacked_targets_idx]
+    scatter_size /= np.max(scatter_size)
+    scatter_size = scatter_size ** 6 * 400
+
+    plt.scatter(precision_list, recall_list,
+                s=scatter_size)
+    plt.title('precision-recall scatter plot')
+
+    if(SAVE_PLOTS_IN_FILE):
+      plt.savefig('plots/' + SAVE_PLOTS_IN_FILE +
+                  '_precision_recall_scatter.pdf', bbox_inches='tight')
 
     return p_values
