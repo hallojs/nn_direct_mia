@@ -12,6 +12,8 @@ class Data:
 
   Attributes
   ----------
+  categories : list
+      List of labels.
   dataset_path : str
       Directory for storing files of the dataset.
   input_shape : tuple
@@ -83,9 +85,10 @@ class Data:
     self.n_training_set = dataset_details['n_training_set']
     self.n_target_models = dataset_details['n_target_models']
     self.n_reference_models = dataset_details['n_reference_models']
-    self.n_categories = dataset_details['n_categories']
+    self.n_categories = len(dataset_details['categories'])
     self.input_shape = dataset_details['input_shape']
     self.dataset_path = dataset_details['dataset_path']
+    self.categories = dataset_details['categories']
 
     img_x, img_y, img_z = self.input_shape
 
