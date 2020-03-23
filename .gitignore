@@ -6,6 +6,7 @@
 
 # data
 /storage
+/plots
 
 # python
 /__pycache__
