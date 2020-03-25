@@ -33,7 +33,8 @@ from tensorflow.keras.layers import Dropout
 from tensorflow.keras.layers import Flatten
 from tensorflow.keras.layers import Dense
 
-SAVE_PLOTS_IN_FILE = 'mnist_cosine'
+SAVE_PLOTS_IN_FILE = False
+
 
 def create_dir_structure(dataset_path):
   """Create directiory structure for all data produced.
