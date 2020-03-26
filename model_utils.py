@@ -646,7 +646,7 @@ def plot2D_high_level_features_target_plt(high_level_features_all, data,
 
   if(SAVE_PLOTS_IN_FILE):
     fig.savefig('plots/' + SAVE_PLOTS_IN_FILE +
-                '_high_level_features_target_zoom.pdf', bbox_inches='tight')
+                '_high_level_features_target.pdf', bbox_inches='tight')
 
 
 def calc_pairwise_distances(features_target, features_reference, data, metric,
@@ -931,3 +931,10 @@ def hypothesis_test(data, records_per_target_model, target_records,
                   '_precision_recall_scatter.pdf', bbox_inches='tight')
 
     return p_values
+
+
+def peep():
+  """Play an audio beep which could indicate a finished computation."""
+  from google.colab import output
+  output.eval_js('new Audio(\
+    "https://upload.wikimedia.org/wikipedia/commons/0/05/Beep-09.ogg").play()')
