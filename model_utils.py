@@ -1,12 +1,18 @@
 """Utiliy module with the whole functionality needed for direct mia on a cnn.
 
-Implementation and analysis of the direct mia from:
-
+Implementation and analysis of the direct mia from
+--------------------------------------------------
 Long, Yunhui and Bindschaedler, Vincent and Wang, Lei and Bu, Diyue and Wang,
 Xiaofeng and Tang, Haixu and Gunter, Carl A and Chen, Kai (2018).
 Understanding membership inferences on well-generalized learning models.
 arXiv preprint arXiv:1802.04889.
+
+Attributes
+----------
+SAVE_PLOTS_IN_FILE : bool/str
+    Set False to surpress plot savings, set a path (str) to save the plots.
 """
+import sys
 import os
 import numpy as np
 import math
@@ -492,13 +498,8 @@ def plot2D_high_level_features_target(high_level_features_all, data,
       Data object for the attacked dataset.
   target_records_idx : np.ndarray
       Index array of target records.
-  colorscale : np.ndarray
-      Color array (hex) for plotting class details.
-
-  Deleted Parameters
-  ------------------
-  high_level_features : numpy.ndarray
-      Array of high dimensional high level features.
+  dist_colorscale : np.ndarray
+      Array of colors which should be used for the plot
   """
   pca = PCA(n_components=2)
   reduced_features = pca.fit_transform(high_level_features_all)
@@ -580,8 +581,8 @@ def plot2D_high_level_features_target_plt(high_level_features_all, data,
   mean_distances_target : np.ndarray
       Array of mean distances from one target record to all reference records
       in the high level feature space.
-  dcolorscale : np.ndarray
-      Color array (hex) for plotting class details.
+  dist_colorscale : np.ndarray
+      Array of colors which should be used for the plot
   zoom_x : int
       Zoom along the x-axis for the plot.
   zoom_y : int
@@ -630,14 +631,15 @@ def plot2D_high_level_features_target_plt(high_level_features_all, data,
 
   # Add labels for each point
   labels = np.arange(0, len(target_records_idx))
+
   for x_pos, y_pos, label in zip(high_level_features_target_records[:, 0],
                                  high_level_features_target_records[:, 1],
                                  labels):
     if annotate:
-      t = ax.annotate(label, xy=(x_pos, y_pos), xytext=(15, 0),
+      t = ax.annotate(label_new, xy=(x_pos, y_pos), xytext=(15, 0),
                       textcoords='offset points', ha='left', va='center',
-                      size=8)
-      t.set_bbox(dict(facecolor='white', alpha=0.5, edgecolor='white'))
+                      size=9)
+      t.set_bbox(dict(facecolor='white', alpha=0.65, edgecolor='white'))
 
   ax.legend(handles=scatter1.legend_elements()[0],
             labels=data.categories)
@@ -740,12 +742,16 @@ def plot_target_records(target_records, data):
       Data object for the attacked dataset.
   """
   rows = math.ceil(len(target_records) / 3)
+  # rows = math.ceil(len(target_records) / 6)
+  # plt.figure(figsize=[30, rows * 4])
   plt.figure(figsize=[15, rows * 4])
   for idx, target_record in enumerate(target_records):
-    title = 'r=' + str(target_record) + ' label=' \
+    title = 'record=' + str(target_record) + ' label=' \
             + str(data.target_train_labels[target_record])
 
-    plt.subplot(rows, 3, idx + 1, title=title)
+    ax = plt.subplot(rows, 3, idx + 1)
+    # ax = plt.subplot(rows, 6, idx + 1)
+    ax.set_title(title, size=25)
 
     input_shape = data.input_shape
     if(input_shape[2] <= 1):
@@ -753,11 +759,14 @@ def plot_target_records(target_records, data):
     else:
       re_shape = (input_shape[0], input_shape[1], input_shape[2])
 
+    plt.axis('off')
     plt.imshow(data.target_train_images[target_record, :, :].reshape(re_shape))
 
   if(SAVE_PLOTS_IN_FILE):
     plt.savefig('plots/' + SAVE_PLOTS_IN_FILE + '_target_records.pdf',
                 bbox_inches='tight')
+
+  # plt.savefig('plots/mnist_all_target_records.jpg', bbox_inches='tight')
 
 
 def sample_reference_losses(target_records, reference_inferences):
@@ -825,8 +834,8 @@ def sample_reference_losses(target_records, reference_inferences):
 
 
 def hypothesis_test(data, records_per_target_model, target_records,
-                    cut_off_p_value, pchip_references, target_inferences,
-                    mean_distances_target):
+                    cut_off_p_value_range, pchip_references, target_inferences,
+                    metric, silent=False, save=False):
   """Left-tailed hypothesis test.
 
   Parameters
@@ -837,100 +846,109 @@ def hypothesis_test(data, records_per_target_model, target_records,
       Describes which record is used to train which target model.
   target_records : numpy.ndarray
       Target records finally used for the attack.
-  cut_off_p_value : float
-      Level of significance used for the hypothesis test.
+  cut_off_p_value_range : tuple
+      Tuple of max and min value for used cut of values during the hypothesis
+      test. Needed for printing precision-recall curves.
   pchip_references : list
       Interpolated ecdfs of smapled log losses
   target_inferences : numpy.array
       Array of log losses of the predictions on the target models.
-  mean_distances_target : np.ndarray
-      Array of mean distances from one target record to all reference records
-      in the high level feature space.
-
-  Returns
-  -------
-  list
-      P-values of the hypothesis tests.
+  metric : str
+      String of the used metric.
+  silent : bool, optional
+      Set true to supress prints in the console.
+  save : bool, optional
+      Set true to save generated figure.
   """
+  if silent:
+    out = NullWriter()
+  else:
+    out = sys.stdout
+
   ground_truth = np.zeros((data.n_trgt_knwldg, data.n_target_models))
   for i in range(data.n_target_models):
     ground_truth[records_per_target_model[i, :], i] = 1
 
-  p_values = []
-  for idx in range(len(target_records)):
-    p_values.append(pchip_references[idx](target_inferences[idx, :]))
+  precision_curve = []
+  recall_curve = []
 
-  sum_precision = 0
-  sum_recall = 0
-  sum_tp = 0
-  sum_fp = 0
+  start, end = cut_off_p_value_range
+  steps = 1 if start == end else 1000
+  for cut_off_p_value in np.linspace(start, end, steps):
+    p_values = []
+    for idx in range(len(target_records)):
+      p_values.append(pchip_references[idx](target_inferences[idx, :]))
 
-  precision_list = []
-  recall_list = []
-  successfull_attacked_targets_idx = []
+    sum_precision = 0
+    sum_recall = 0
+    sum_tp = 0
+    sum_fp = 0
+    sum_fn = 0
 
-  for idx, target_record in enumerate(target_records):
-    fn = 0
-    tn = 0
-    fp = 0
-    tp = 0
-    for i in range(0, data.n_target_models):
-      hpt = p_values[idx][i]
-      gt = ground_truth[target_record, i]
-      if(hpt >= cut_off_p_value and gt == 1):
-        fn += 1
-      if(hpt >= cut_off_p_value and gt == 0):
-        tn += 1
-      if(hpt < cut_off_p_value and gt == 0):
-        fp += 1
-      if(hpt < cut_off_p_value and gt == 1):
-        tp += 1
+    precision_list = []
+    recall_list = []
+    successfull_attacked_targets_idx = []
 
-    print('target_record: ', target_record)
-    print('fn: ', fn, 'tn: ', tn, 'fp: ', fp, 'tp: ', tp)
+    for idx, target_record in enumerate(target_records):
+      fn = 0
+      tn = 0
+      fp = 0
+      tp = 0
+      for i in range(0, data.n_target_models):
+        hpt = p_values[idx][i]
+        gt = ground_truth[target_record, i]
+        if(hpt >= cut_off_p_value and gt == 1):
+          fn += 1
+        if(hpt >= cut_off_p_value and gt == 0):
+          tn += 1
+        if(hpt < cut_off_p_value and gt == 0):
+          fp += 1
+        if(hpt < cut_off_p_value and gt == 1):
+          tp += 1
 
-    if(tp > 0):
-      successfull_attacked_targets_idx.append(idx)
-      precision = tp / (fp + tp)
-      recall = tp / (fn + tp)
-      sum_precision += precision
-      sum_recall += recall
+      print('target_record: ', target_record, file=out)
+      print('fn: ', fn, 'tn: ', tn, 'fp: ', fp, 'tp: ', tp, file=out)
+
+      if(tp > 0):
+        successfull_attacked_targets_idx.append(idx)
+        precision = tp / (fp + tp)
+        recall = tp / (fn + tp)
+        print('precision: ', precision, file=out)
+        print('recall: ', recall, file=out)
+
+        precision_list.append([precision])
+        recall_list.append([recall])
+
       sum_tp += tp
       sum_fp += fp
-      print('precision: ', precision)
-      print('recall: ', recall)
-      print('mean distance to records from reference dataset: ',
-            mean_distances_target[idx])
+      sum_fn += fn
+      print('\n', file=out)
 
-      precision_list.append([precision])
-      recall_list.append([recall])
+    n_attacks_successfull = len(successfull_attacked_targets_idx)
+    print('n_attacks_successfull: ', n_attacks_successfull, file=out)
 
-    print('\n')
+    if(n_attacks_successfull):
+      print('true positives over all target_records: ', sum_tp, file=out)
+      print('false positives over all target_records: ', sum_fp, file=out)
 
-  n_attacks_successfull = len(successfull_attacked_targets_idx)
-  print('n_attacks_successfull: ', n_attacks_successfull)
+      precision_all = sum_tp / (sum_fp + sum_tp)
+      recall_all = sum_tp / (sum_fn + sum_tp)
+    else:
+      precision_all = 1
+      recall_all = 0
+    print('precision over all target records: ', precision_all, file=out)
+    print('recall over all target records: ', recall_all, file=out)
 
-  if(n_attacks_successfull):
-    print('precsion over all target_records: ',
-          sum_precision / n_attacks_successfull)
-    print('recall over all target_records: ',
-          sum_recall / n_attacks_successfull)
-    print('true positives over all target_records: ', sum_tp)
-    print('false positives over all target_records: ', sum_fp)
+    precision_curve.append(precision_all)
+    recall_curve.append(recall_all)
 
-    scatter_size = mean_distances_target[successfull_attacked_targets_idx]
-    scatter_size /= np.max(scatter_size)
-    scatter_size = scatter_size ** 6 * 400
-
-    plt.scatter(precision_list, recall_list,
-                s=scatter_size)
-    plt.title('precision-recall scatter plot')
-
-    if(SAVE_PLOTS_IN_FILE):
-      plt.savefig('plots/' + SAVE_PLOTS_IN_FILE +
-                  '_precision_recall_scatter.pdf', bbox_inches='tight')
-
-    return p_values
+  precision_curve = np.asarray(precision_curve)
+  recall_curve = np.asarray(recall_curve)
+  if save:
+    path = data.dataset_path + metric + '_precision_curve.npy'
+    np.save(path, precision_curve)
+    path = data.dataset_path + metric + '_recall_curve.npy'
+    np.save(path, recall_curve)
 
 
 def peep():
@@ -938,3 +956,10 @@ def peep():
   from google.colab import output
   output.eval_js('new Audio(\
     "https://upload.wikimedia.org/wikipedia/commons/0/05/Beep-09.ogg").play()')
+
+
+class NullWriter(object):
+  """Helper class for suppres print outputs in self-defined functions."""
+
+  def write(self, arg):
+    pass
